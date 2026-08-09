@@ -1,1 +1,4 @@
 .DS_Store
+
+# Claude Code 本機設定（內含本機絕對路徑）
+.claude/
