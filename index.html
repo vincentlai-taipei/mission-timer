@@ -75,6 +75,16 @@
     text-shadow: 0 0 70px rgba(120, 190, 255, 0.22);
   }
 
+  .sun {
+    margin: 1.1rem 0 0;
+    font-size: 0.84rem;
+    letter-spacing: 0.16em;
+    text-indent: 0.16em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    min-height: 1.2em;
+  }
+
   /* ---- 航程進度 ---- */
   .track {
     position: relative;
@@ -211,6 +221,7 @@
   </nav>
 
   <h1 class="clock" id="clock">25:00</h1>
+  <p class="sun" id="sun"></p>
 
   <div class="track">
     <div class="fill" id="fill"></div>
@@ -518,6 +529,22 @@
   resize();
   render();
   requestAnimationFrame(frame);
+
+  /* ================= 今日台北日出日落 ================= */
+  (async () => {
+    const sunEl = document.getElementById('sun');
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=25.03&longitude=121.56' +
+                '&daily=sunrise,sunset&timezone=Asia/Taipei&forecast_days=1';
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const daily = (await res.json()).daily;
+      const hhmm = (iso) => iso.split('T')[1].slice(0, 5);
+      sunEl.textContent = `日出 ${hhmm(daily.sunrise[0])} ／ 日落 ${hhmm(daily.sunset[0])}`;
+    } catch {
+      sunEl.textContent = '離線';                // 取不到就降級，不影響計時器
+    }
+  })();
 })();
 </script>
 </body>
