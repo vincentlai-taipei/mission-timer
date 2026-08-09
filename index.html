@@ -153,7 +153,11 @@
   .pill:disabled { opacity: 0.4; cursor: default; }
 
   /* ---- 火山造型的發射鍵 ---- */
+  /* --heat 0→1 貫穿整座火山的升溫程度，由 .stage-1 ~ .stage-5 逐段推高 */
+  .volcano-wrap { position: relative; display: flex; }
+
   .volcano {
+    --heat: 0;
     position: relative;
     font: inherit;
     font-size: 1.05rem;
@@ -171,13 +175,56 @@
     background:
       radial-gradient(58% 34% at 50% 4%, #fff0c4 0%, #ffb03a 32%, rgba(255,122,47,0) 72%),
       linear-gradient(180deg, #ff9040 0%, #e2561c 34%, #6b2a18 78%, #37170f 100%);
-    transition: filter 0.18s, opacity 0.18s;
-    filter: drop-shadow(0 -6px 18px rgba(255, 130, 50, 0.45));
+    transition: filter 0.3s, opacity 0.3s;
+    filter: drop-shadow(0 -6px calc(18px + var(--heat) * 40px)
+                        rgba(255, 130, 50, calc(0.45 + var(--heat) * 0.5)));
+    animation: rumble calc(1.15s - var(--heat) * 0.8s) linear infinite;
   }
   .volcano:hover { filter: drop-shadow(0 -6px 24px rgba(255, 150, 70, 0.7)); }
-  .volcano:disabled { opacity: 0.42; cursor: default; }
+  /* 飛行中按鍵停用，但越接近噴發越不該被淡化 */
+  .volcano:disabled { opacity: calc(0.45 + var(--heat) * 0.55); cursor: default; }
 
-  /* 噴發的火星子，只在飛行中出現 */
+  @keyframes rumble {
+    0%, 100% { translate: 0 0; }
+    25% { translate: calc(var(--heat) * -1.7px) calc(var(--heat) * 0.9px); }
+    50% { translate: calc(var(--heat) * 1.5px)  calc(var(--heat) * -0.8px); }
+    75% { translate: calc(var(--heat) * -1.1px) calc(var(--heat) * -1.2px); }
+  }
+
+  /* 火山口的熱輝，隨升溫變亮變快 */
+  .glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(46% 26% at 50% 2%,
+                #fffbe8 0%, #ffb23c 38%, rgba(255, 110, 40, 0) 74%);
+    opacity: var(--heat);
+    animation: throb calc(2.4s - var(--heat) * 1.5s) ease-in-out infinite;
+  }
+  @keyframes throb { 0%, 100% { scale: 1; } 50% { scale: 1.14; } }
+
+  /* 山坡上的熔岩，升溫過半才浮現 */
+  .volcano::before, .volcano::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 13px;
+    height: 100%;
+    pointer-events: none;
+    background: linear-gradient(180deg, #fff4cd 0%, #ffa233 26%,
+                #e2521a 55%, rgba(180, 50, 10, 0) 88%);
+    opacity: calc((var(--heat) - 0.45) * 1.7);
+  }
+  .volcano::before { left: 42%; rotate: -7deg; }
+  .volcano::after  { left: 55%; rotate: 8deg; }
+
+  /* 熔岩與熱輝都是絕對定位，字要墊高才不會被蓋掉 */
+  .volcano .label {
+    position: relative;
+    text-shadow: 0 1px 3px rgba(60, 20, 0, 0.55);
+  }
+
+  /* 火山口冒出的火星子 */
   .ember {
     position: absolute;
     left: 50%;
@@ -189,15 +236,79 @@
     opacity: 0;
     pointer-events: none;
   }
-  .running .ember { animation: erupt 1.5s ease-out infinite; }
+  .running .ember, .erupted .ember {
+    animation: spark calc(1.5s - var(--heat) * 0.95s) ease-out infinite;
+  }
   .ember:nth-of-type(2) { animation-delay: 0.5s; }
   .ember:nth-of-type(3) { animation-delay: 1s; }
 
-  @keyframes erupt {
+  @keyframes spark {
     0%   { opacity: 0;   transform: translate(-50%, 0) scale(0.5); }
     18%  { opacity: 1; }
     100% { opacity: 0;   transform: translate(-50%, 34px) scale(1.6); }
   }
+
+  /* ---- 時間到：真正的噴發 ---- */
+  .erupted .volcano {
+    --heat: 1;
+    animation: none;
+    translate: 0 0;
+    opacity: 1;
+  }
+  .erupted .volcano::before, .erupted .volcano::after { opacity: 1; }
+
+  .plume {
+    position: absolute;
+    left: 50%;
+    top: 2px;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+  .plume i {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    margin: -3.5px 0 0 -3.5px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff6d2 0%, #ff8f2c 55%, rgba(255, 90, 20, 0) 100%);
+    opacity: 0;
+  }
+  .erupted .plume i {
+    animation: plume var(--t) cubic-bezier(0.12, 0.62, 0.36, 1) var(--d) forwards;
+  }
+  @keyframes plume {
+    0%   { opacity: 0; transform: translate(0, 0) scale(0.35); }
+    10%  { opacity: 1; }
+    55%  { opacity: 1; transform: translate(calc(var(--dx) * 0.55), var(--dy)) scale(1); }
+    100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) * -0.2 + 70px)) scale(0.45); }
+  }
+
+  .flash {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(58% 46% at 50% 86%,
+                rgba(255, 186, 92, 0.55), rgba(255, 90, 20, 0) 70%);
+  }
+  .erupted .flash { animation: flashout 1.2s ease-out forwards; }
+  @keyframes flashout {
+    0%   { opacity: 0; }
+    12%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* 最後五分鐘，每過一分鐘往噴發再推一階 */
+  .stage-1 .volcano { --heat: 0.18; }
+  .stage-2 .volcano { --heat: 0.36; }
+  .stage-3 .volcano { --heat: 0.56; }
+  .stage-4 .volcano { --heat: 0.78; }
+  .stage-5 .volcano { --heat: 1; }
+
+  /* 倒數本身也轉暖，讓「快來不及了」在視線焦點上就看得到 */
+  .stage-3 .clock, .stage-4 .clock, .stage-5 .clock { color: #ffd2b4; }
+  .erupted .clock { color: #ff9d5c; }
 
   button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
 
@@ -234,13 +345,20 @@
   </div>
 
   <div class="controls">
-    <button class="volcano" id="launch">
-      發射
-      <i class="ember"></i><i class="ember"></i><i class="ember"></i>
-    </button>
+    <div class="volcano-wrap">
+      <button class="volcano" id="launch">
+        <span class="glow" aria-hidden="true"></span>
+        <span class="label">發射</span>
+        <i class="ember"></i><i class="ember"></i><i class="ember"></i>
+      </button>
+      <!-- 噴發物要畫在按鍵的 clip-path 之外，否則會被裁掉 -->
+      <div class="plume" id="plume" aria-hidden="true"></div>
+    </div>
     <button class="pill" id="standby">待機</button>
     <button class="pill" id="rtb">返航</button>
   </div>
+
+  <div class="flash" aria-hidden="true"></div>
 </main>
 
 <script>
@@ -276,7 +394,26 @@
     standbyBtn.disabled = !running;
     rtbBtn.disabled = remaining === TOTAL && !running;
     stageEl.classList.toggle('running', running);
+
+    // 剩下五分鐘起，每過一分鐘往上跳一階；歸零就真的噴發
+    const stage = s > 0 && s <= 300 ? 6 - Math.ceil(s / 60) : 0;
+    for (let i = 1; i <= 5; i++) stageEl.classList.toggle('stage-' + i, i === stage);
+    stageEl.classList.toggle('erupted', remaining <= 0 && arriveAt > 0);
   }
+
+  /* 噴發時往上噴的熔岩塊，位置固定寫死才不會每次重繪都跳 */
+  (() => {
+    const rnd = mulberry32(0x5eed);
+    const plumeEl = document.getElementById('plume');
+    let html = '';
+    for (let i = 0; i < 18; i++) {
+      const dx = (rnd() - 0.5) * 260;
+      const dy = -(90 + rnd() * 170);
+      html += `<i style="--dx:${dx.toFixed(1)}px;--dy:${dy.toFixed(1)}px;` +
+              `--d:${(rnd() * 0.32).toFixed(2)}s;--t:${(1.5 + rnd() * 1.2).toFixed(2)}s"></i>`;
+    }
+    plumeEl.innerHTML = html;
+  })();
 
   launchBtn.onclick = () => {
     if (remaining <= 0) return;
